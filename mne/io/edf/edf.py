@@ -589,7 +589,7 @@ def _read_edf_header(fname, exclude):
                  f'{day:02d} {hour:02d}:{minute:02d}:{sec:02d}).')
             meas_date = None
 
-        header_nbytes = int(_edf_str(fid.read(8)))
+        header_nbytes = int(_edf_str(fid.read(8)).replace(".", ""))
 
         # The following 44 bytes sometimes identify the file type, but this is
         # not guaranteed. Therefore, we skip this field and use the file
