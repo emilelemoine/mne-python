@@ -647,21 +647,21 @@ def _read_edf_header(fname, exclude):
             meas_date = fid.read(8).decode("latin-1")
             print(meas_date)
             meas_date = meas_date.replace(".", "")
-<<<<<<< HEAD
-            day, month, year = [meas_date[i:i + 2] for i in range(0, len(meas_date), 2)]
-            # day, month, year = [int(float(x)) for x in meas_date.split('.')]
-            year = year + 2000 if year < 85 else year + 1900
-
-        meas_time = fid.read(8).decode('latin-1')
-        print(meas_time)
-        meas_time = meas_time.replace(".", "")
-        hour, minute, sec = [meas_time[i:i + 2] for i in range(0, len(meas_time), 2)]
-=======
             day, month, year = [
-                int(meas_date[i : i + 2]) for i in range(0, len(meas_date), 2)
+                meas_date[i : i + 2] for i in range(0, len(meas_date), 2)
             ]
             # day, month, year = [int(float(x)) for x in meas_date.split('.')]
             year = year + 2000 if year < 85 else year + 1900
+
+        meas_time = fid.read(8).decode("latin-1")
+        print(meas_time)
+        meas_time = meas_time.replace(".", "")
+        hour, minute, sec = [meas_time[i : i + 2] for i in range(0, len(meas_time), 2)]
+        day, month, year = [
+            int(meas_date[i : i + 2]) for i in range(0, len(meas_date), 2)
+        ]
+        # day, month, year = [int(float(x)) for x in meas_date.split('.')]
+        year = year + 2000 if year < 85 else year + 1900
 
         meas_time = fid.read(8).decode("latin-1")
         try:
@@ -671,7 +671,6 @@ def _read_edf_header(fname, exclude):
             ]
         except ValueError:
             hour, minute, sec = None, None, None
->>>>>>> 8a5ad86f5c6e009a9bfffbeddf1afa8b063d3107
         # hour, minute, sec = [int(float(x)) for x in meas_time.split('.')]
         try:
             meas_date = datetime(
