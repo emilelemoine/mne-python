@@ -601,176 +601,179 @@ def _read_edf_header(fname, exclude):
     """Read header information from EDF+ or BDF file."""
     edf_info = {"events": []}
 
-    with open(fname, "rb") as fid:
 
-        fid.read(8)  # version (unused here)
+    len_rec_info = 80
+    while len_rec_info <= 84:
+        try:
+            with open(fname, "rb") as fid:
 
-        # patient ID
-        patient = {}
-        id_info = fid.read(80).decode("latin-1").rstrip()
-        id_info = id_info.split(" ")
-        if len(id_info):
-            patient["id"] = id_info[0]
-            if len(id_info) == 4:
+                fid.read(8)  # version (unused here)
+
+                # patient ID
+                patient = {}
+                id_info = fid.read(80).decode("latin-1").rstrip()
+                id_info = id_info.split(" ")
+                if len(id_info):
+                    patient["id"] = id_info[0]
+                    if len(id_info) == 4:
+                        try:
+                            birthdate = datetime.strptime(id_info[2], "%d-%b-%Y")
+                        except ValueError:
+                            birthdate = "X"
+                        patient["sex"] = id_info[1]
+                        patient["birthday"] = birthdate
+                        patient["name"] = id_info[3]
+
+                # Recording ID
+                meas_id = {}
+                rec_info = fid.read(len_rec_info).decode("latin-1").rstrip().split(" ")
+                valid_startdate = False
+                if len(rec_info) == 5:
+                    try:
+                        startdate = datetime.strptime(rec_info[1], "%d-%b-%Y")
+                    except ValueError:
+                        startdate = "X"
+                    else:
+                        valid_startdate = True
+                    meas_id["startdate"] = startdate
+                    meas_id["study_id"] = rec_info[2]
+                    meas_id["technician"] = rec_info[3]
+                    meas_id["equipment"] = rec_info[4]
+
+                # If startdate available in recording info, use it instead of the
+                # file's meas_date since it contains all 4 digits of the year
+                if valid_startdate:
+                    day = meas_id["startdate"].day
+                    month = meas_id["startdate"].month
+                    year = meas_id["startdate"].year
+                    fid.read(8)  # skip file's meas_date
+                else:
+                    meas_date = fid.read(8).decode("latin-1")
+                    meas_date = meas_date.replace(".", "")
+                    day, month, year = [
+                        meas_date[i : i + 2] for i in range(0, len(meas_date), 2)
+                    ]
+                    year = year + 2000 if year < 85 else year + 1900
+
+                meas_time = fid.read(8).decode("latin-1")
                 try:
-                    birthdate = datetime.strptime(id_info[2], "%d-%b-%Y")
+                    meas_time = meas_time.replace(".", "")
+                    hour, minute, sec = [
+                        int(meas_time[i : i + 2]) for i in range(0, len(meas_time), 2)
+                    ]
                 except ValueError:
-                    birthdate = "X"
-                patient["sex"] = id_info[1]
-                patient["birthday"] = birthdate
-                patient["name"] = id_info[3]
+                    hour, minute, sec = None, None, None
 
-        # Recording ID
-        meas_id = {}
-        if fid.peek().decode("latin-1")[80] == ".":
-            len_rec_info = 82
-        else:
-            len_rec_info = 80
-        rec_info = fid.read(len_rec_info).decode("latin-1").rstrip().split(" ")
-        valid_startdate = False
-        if len(rec_info) == 5:
-            try:
-                startdate = datetime.strptime(rec_info[1], "%d-%b-%Y")
-            except ValueError:
-                startdate = "X"
-            else:
-                valid_startdate = True
-            meas_id["startdate"] = startdate
-            meas_id["study_id"] = rec_info[2]
-            meas_id["technician"] = rec_info[3]
-            meas_id["equipment"] = rec_info[4]
+                try:
+                    meas_date = datetime(
+                        year, month, day, hour, minute, sec, tzinfo=timezone.utc
+                    )
+                except ValueError:
+                    warn(
+                        f"Invalid date encountered ({year:04d}-{month:02d}-"
+                        f"{day:02d} {hour:02d}:{minute:02d}:{sec:02d})."
+                    )
+                    meas_date = None
 
-        # If startdate available in recording info, use it instead of the
-        # file's meas_date since it contains all 4 digits of the year
-        if valid_startdate:
-            day = meas_id["startdate"].day
-            month = meas_id["startdate"].month
-            year = meas_id["startdate"].year
-            fid.read(8)  # skip file's meas_date
-        else:
-            meas_date = fid.read(8).decode("latin-1")
-            meas_date = meas_date.replace(".", "")
-            day, month, year = [
-                meas_date[i : i + 2] for i in range(0, len(meas_date), 2)
-            ]
-            year = year + 2000 if year < 85 else year + 1900
+                header_nbytes = int(_edf_str(fid.read(8)).replace(".", ""))
 
-        meas_time = fid.read(8).decode("latin-1")
-        try:
-            meas_time = meas_time.replace(".", "")
-            hour, minute, sec = [
-                int(meas_time[i : i + 2]) for i in range(0, len(meas_time), 2)
-            ]
-        except ValueError:
-            hour, minute, sec = None, None, None
+                # The following 44 bytes sometimes identify the file type, but this is
+                # not guaranteed. Therefore, we skip this field and use the file
+                # extension to determine the subtype (EDF or BDF, which differ in the
+                # number of bytes they use for the data records; EDF uses 2 bytes
+                # whereas BDF uses 3 bytes).
+                fid.read(44)
+                subtype = os.path.splitext(fname)[1][1:].lower()
 
-        try:
-            meas_date = datetime(
-                year, month, day, hour, minute, sec, tzinfo=timezone.utc
-            )
-        except ValueError:
-            warn(
-                f"Invalid date encountered ({year:04d}-{month:02d}-"
-                f"{day:02d} {hour:02d}:{minute:02d}:{sec:02d})."
-            )
-            meas_date = None
+                n_records = int(_edf_str(fid.read(8)))
+                record_length = float(_edf_str(fid.read(8)))
+                record_length = np.array([record_length, 1.0])  # in seconds
+                if record_length[0] == 0:
+                    record_length = record_length[0] = 1.0
+                    warn(
+                        "Header information is incorrect for record length. Default "
+                        "record length set to 1."
+                    )
 
-        header_nbytes = int(_edf_str(fid.read(8)).replace(".", ""))
+                nchan = int(_edf_str(fid.read(4)))
+                channels = list(range(nchan))
+                ch_names = [fid.read(16).strip().decode("latin-1") for ch in channels]
+                exclude = _find_exclude_idx(ch_names, exclude)
+                tal_idx = _find_tal_idx(ch_names)
+                exclude = np.concatenate([exclude, tal_idx])
+                sel = np.setdiff1d(np.arange(len(ch_names)), exclude)
+                for ch in channels:
+                    fid.read(80)  # transducer
+                units = [fid.read(8).strip().decode("latin-1") for ch in channels]
+                edf_info["units"] = list()
+                for i, unit in enumerate(units):
+                    if i in exclude:
+                        continue
+                    if unit == "uV":
+                        edf_info["units"].append(1e-6)
+                    elif unit == "mV":
+                        edf_info["units"].append(1e-3)
+                    else:
+                        edf_info["units"].append(1)
+                edf_info["units"] = np.array(edf_info["units"], float)
 
-        # The following 44 bytes sometimes identify the file type, but this is
-        # not guaranteed. Therefore, we skip this field and use the file
-        # extension to determine the subtype (EDF or BDF, which differ in the
-        # number of bytes they use for the data records; EDF uses 2 bytes
-        # whereas BDF uses 3 bytes).
-        fid.read(44)
-        subtype = os.path.splitext(fname)[1][1:].lower()
+                ch_names = [ch_names[idx] for idx in sel]
+                units = [units[idx] for idx in sel]
 
-        n_records = int(_edf_str(fid.read(8)))
-        record_length = float(_edf_str(fid.read(8)))
-        record_length = np.array([record_length, 1.0])  # in seconds
-        if record_length[0] == 0:
-            record_length = record_length[0] = 1.0
-            warn(
-                "Header information is incorrect for record length. Default "
-                "record length set to 1."
-            )
+                # make sure channel names are unique
+                ch_names = _unique_channel_names(ch_names)
+                orig_units = dict(zip(ch_names, units))
 
-        nchan = int(_edf_str(fid.read(4)))
-        channels = list(range(nchan))
-        ch_names = [fid.read(16).strip().decode("latin-1") for ch in channels]
-        exclude = _find_exclude_idx(ch_names, exclude)
-        tal_idx = _find_tal_idx(ch_names)
-        exclude = np.concatenate([exclude, tal_idx])
-        sel = np.setdiff1d(np.arange(len(ch_names)), exclude)
-        for ch in channels:
-            fid.read(80)  # transducer
-        units = [fid.read(8).strip().decode("latin-1") for ch in channels]
-        edf_info["units"] = list()
-        for i, unit in enumerate(units):
-            if i in exclude:
-                continue
-            if unit == "uV":
-                edf_info["units"].append(1e-6)
-            elif unit == "mV":
-                edf_info["units"].append(1e-3)
-            else:
-                edf_info["units"].append(1)
-        edf_info["units"] = np.array(edf_info["units"], float)
+                physical_min = np.array([float(_edf_str(fid.read(8))) for ch in channels])[sel]
+                physical_max = np.array([float(_edf_str(fid.read(8))) for ch in channels])[sel]
+                digital_min = np.array([float(_edf_str(fid.read(8))) for ch in channels])[sel]
+                digital_max = np.array([float(_edf_str(fid.read(8))) for ch in channels])[sel]
+                prefiltering = [_edf_str(fid.read(80)).strip() for ch in channels][:-1]
+                highpass, lowpass = _parse_prefilter_string(prefiltering)
 
-        ch_names = [ch_names[idx] for idx in sel]
-        units = [units[idx] for idx in sel]
+                # number of samples per record
+                n_samps = np.array([int(_edf_str(fid.read(8))) for ch in channels])
 
-        # make sure channel names are unique
-        ch_names = _unique_channel_names(ch_names)
-        orig_units = dict(zip(ch_names, units))
+                # Populate edf_info
+                edf_info.update(
+                    ch_names=ch_names,
+                    data_offset=header_nbytes,
+                    digital_max=digital_max,
+                    digital_min=digital_min,
+                    highpass=highpass,
+                    sel=sel,
+                    lowpass=lowpass,
+                    meas_date=meas_date,
+                    n_records=n_records,
+                    n_samps=n_samps,
+                    nchan=nchan,
+                    subject_info=patient,
+                    physical_max=physical_max,
+                    physical_min=physical_min,
+                    record_length=record_length,
+                    subtype=subtype,
+                    tal_idx=tal_idx,
+                )
 
-        physical_min = np.array([float(_edf_str(fid.read(8))) for ch in channels])[sel]
-        physical_max = np.array([float(_edf_str(fid.read(8))) for ch in channels])[sel]
-        digital_min = np.array([float(_edf_str(fid.read(8))) for ch in channels])[sel]
-        digital_max = np.array([float(_edf_str(fid.read(8))) for ch in channels])[sel]
-        prefiltering = [_edf_str(fid.read(80)).strip() for ch in channels][:-1]
-        highpass, lowpass = _parse_prefilter_string(prefiltering)
+                fid.read(32 * nchan).decode()  # reserved
+                assert fid.tell() == header_nbytes
 
-        # number of samples per record
-        n_samps = np.array([int(_edf_str(fid.read(8))) for ch in channels])
-
-        # Populate edf_info
-        edf_info.update(
-            ch_names=ch_names,
-            data_offset=header_nbytes,
-            digital_max=digital_max,
-            digital_min=digital_min,
-            highpass=highpass,
-            sel=sel,
-            lowpass=lowpass,
-            meas_date=meas_date,
-            n_records=n_records,
-            n_samps=n_samps,
-            nchan=nchan,
-            subject_info=patient,
-            physical_max=physical_max,
-            physical_min=physical_min,
-            record_length=record_length,
-            subtype=subtype,
-            tal_idx=tal_idx,
-        )
-
-        fid.read(32 * nchan).decode()  # reserved
-        assert fid.tell() == header_nbytes
-
-        fid.seek(0, 2)
-        n_bytes = fid.tell()
-        n_data_bytes = n_bytes - header_nbytes
-        total_samps = n_data_bytes // 3 if subtype == "bdf" else n_data_bytes // 2
-        read_records = total_samps // np.sum(n_samps)
-        if n_records != read_records:
-            warn(
-                "Number of records from the header does not match the file "
-                "size (perhaps the recording was not stopped before exiting)."
-                " Inferring from the file size."
-            )
-            edf_info["n_records"] = read_records
-        del n_records
+                fid.seek(0, 2)
+                n_bytes = fid.tell()
+                n_data_bytes = n_bytes - header_nbytes
+                total_samps = n_data_bytes // 3 if subtype == "bdf" else n_data_bytes // 2
+                read_records = total_samps // np.sum(n_samps)
+                if n_records != read_records:
+                    warn(
+                        "Number of records from the header does not match the file "
+                        "size (perhaps the recording was not stopped before exiting)."
+                        " Inferring from the file size."
+                    )
+                    edf_info["n_records"] = read_records
+                del n_records
+                break
+            except ValueError, AssertionError:
+                len_rec_info +=1
 
         if subtype == "bdf":
             edf_info["dtype_byte"] = 3  # 24-bit (3 byte) integers
