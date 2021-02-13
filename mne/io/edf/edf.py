@@ -622,8 +622,8 @@ def _read_edf_header(fname, exclude):
 
         # Recording ID
         meas_id = {}
-        if fid.peek()[80:81] == b".":
-            len_rec_info = 83
+        if fid.peek().decode("latin-1")[80] == ".":
+            len_rec_info = 82
         else:
             len_rec_info = 80
         rec_info = fid.read(len_rec_info).decode("latin-1").rstrip().split(" ")
