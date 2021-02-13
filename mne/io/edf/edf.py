@@ -622,7 +622,11 @@ def _read_edf_header(fname, exclude):
 
         # Recording ID
         meas_id = {}
-        rec_info = fid.read(80).decode("latin-1").rstrip().split(" ")
+        if fid.peak()[80:81] == b".":
+            len_rec_info = 83
+        else:
+            len_rec_info = 80
+        rec_info = fid.read(len_rec_info).decode("latin-1").rstrip().split(" ")
         valid_startdate = False
         if len(rec_info) == 5:
             try:
