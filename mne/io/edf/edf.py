@@ -569,12 +569,16 @@ def _read_edf_header(fname, exclude):
         else:
             meas_date = fid.read(8).decode('latin-1')
             print(meas_date)
-            day, month, year = [int(float(x)) for x in meas_date.split('.')]
+            meas_date = meas_date.replace(".", "")
+            day, month, year = [meas_date[i:i + 2] for i in range(0, len(meas_date), 2)]
+            # day, month, year = [int(float(x)) for x in meas_date.split('.')]
             year = year + 2000 if year < 85 else year + 1900
 
         meas_time = fid.read(8).decode('latin-1')
         print(meas_time)
-        hour, minute, sec = [int(float(x)) for x in meas_time.split('.')]
+        meas_time = meas_time.replace(".", "")
+        hour, minute, sec = [meas_time[i:i + 2] for i in range(0, len(meas_time), 2)]
+        # hour, minute, sec = [int(float(x)) for x in meas_time.split('.')]
         try:
             meas_date = datetime(year, month, day, hour, minute, sec,
                                  tzinfo=timezone.utc)
