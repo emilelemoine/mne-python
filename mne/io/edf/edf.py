@@ -571,6 +571,8 @@ def _read_edf_header(fname, exclude):
             day, month, year = [int(float(x)) for x in meas_date.split('.')]
             year = year + 2000 if year < 85 else year + 1900
 
+        print(day)
+
         meas_time = fid.read(8).decode('latin-1')
         hour, minute, sec = [int(float(x)) for x in meas_time.split('.')]
         try:
