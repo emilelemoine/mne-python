@@ -732,6 +732,13 @@ def _read_edf_header(fname, exclude):
         ch_names = _unique_channel_names(ch_names)
         orig_units = dict(zip(ch_names, units))
 
+        physical_min = np.array([float(_edf_str(fid.read(8))) for ch in channels])[sel]
+        physical_max = np.array([float(_edf_str(fid.read(8))) for ch in channels])[sel]
+        digital_min = np.array([float(_edf_str(fid.read(8))) for ch in channels])[sel]
+        digital_max = np.array([float(_edf_str(fid.read(8))) for ch in channels])[sel]
+        prefiltering = [_edf_str(fid.read(80)).strip() for ch in channels][:-1]
+        highpass, lowpass = _parse_prefilter_string(prefiltering)
+
         # number of samples per record
         n_samps = np.array([int(_edf_str(fid.read(8))) for ch in channels])
 
@@ -739,12 +746,18 @@ def _read_edf_header(fname, exclude):
         edf_info.update(
             ch_names=ch_names,
             data_offset=header_nbytes,
+            digital_max=digital_max,
+            digital_min=digital_min,
+            highpass=highpass,
             sel=sel,
+            lowpass=lowpass,
             meas_date=meas_date,
             n_records=n_records,
             n_samps=n_samps,
             nchan=nchan,
             subject_info=patient,
+            physical_max=physical_max,
+            physical_min=physical_min,
             record_length=record_length,
             subtype=subtype,
             tal_idx=tal_idx,
