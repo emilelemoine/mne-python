@@ -622,7 +622,7 @@ def _read_edf_header(fname, exclude):
 
         # Recording ID
         meas_id = {}
-        if fid.peak()[80:81] == b".":
+        if fid.peek()[80:81] == b".":
             len_rec_info = 83
         else:
             len_rec_info = 80
