@@ -772,8 +772,8 @@ def _read_edf_header(fname, exclude):
                     edf_info["n_records"] = read_records
                 del n_records
                 break
-            except ValueError, AssertionError:
-                len_rec_info +=1
+            except (ValueError, AssertionError):
+                len_rec_info += 1
 
         if subtype == "bdf":
             edf_info["dtype_byte"] = 3  # 24-bit (3 byte) integers
