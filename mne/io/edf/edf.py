@@ -654,7 +654,6 @@ def _read_edf_header(fname, exclude):
             year = year + 2000 if year < 85 else year + 1900
 
         meas_time = fid.read(8).decode("latin-1")
-
         try:
             meas_time = meas_time.replace(".", "")
             hour, minute, sec = [
@@ -662,7 +661,7 @@ def _read_edf_header(fname, exclude):
             ]
         except ValueError:
             hour, minute, sec = None, None, None
-
+        # hour, minute, sec = [int(float(x)) for x in meas_time.split('.')]
         try:
             meas_date = datetime(
                 year, month, day, hour, minute, sec, tzinfo=timezone.utc
@@ -723,28 +722,6 @@ def _read_edf_header(fname, exclude):
         ch_names = _unique_channel_names(ch_names)
         orig_units = dict(zip(ch_names, units))
 
-        try:
-            physical_min = np.array([float(_edf_str(fid.read(8))) for ch in channels])[
-                sel
-            ]
-            physical_max = np.array([float(_edf_str(fid.read(8))) for ch in channels])[
-                sel
-            ]
-            digital_min = np.array([float(_edf_str(fid.read(8))) for ch in channels])[
-                sel
-            ]
-            digital_max = np.array([float(_edf_str(fid.read(8))) for ch in channels])[
-                sel
-            ]
-        except ValueError:
-            fid.read(8)
-            fid.read(8)
-            fid.read(8)
-            fid.read(8)
-
-        prefiltering = [_edf_str(fid.read(80)).strip() for ch in channels][:-1]
-        highpass, lowpass = _parse_prefilter_string(prefiltering)
-
         # number of samples per record
         n_samps = np.array([int(_edf_str(fid.read(8))) for ch in channels])
 
@@ -752,9 +729,7 @@ def _read_edf_header(fname, exclude):
         edf_info.update(
             ch_names=ch_names,
             data_offset=header_nbytes,
-            highpass=highpass,
             sel=sel,
-            lowpass=lowpass,
             meas_date=meas_date,
             n_records=n_records,
             n_samps=n_samps,
