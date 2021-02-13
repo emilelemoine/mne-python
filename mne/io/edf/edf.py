@@ -601,7 +601,6 @@ def _read_edf_header(fname, exclude):
     """Read header information from EDF+ or BDF file."""
     edf_info = {"events": []}
 
-
     len_rec_info = 80
     while len_rec_info <= 84:
         try:
@@ -724,10 +723,18 @@ def _read_edf_header(fname, exclude):
                 ch_names = _unique_channel_names(ch_names)
                 orig_units = dict(zip(ch_names, units))
 
-                physical_min = np.array([float(_edf_str(fid.read(8))) for ch in channels])[sel]
-                physical_max = np.array([float(_edf_str(fid.read(8))) for ch in channels])[sel]
-                digital_min = np.array([float(_edf_str(fid.read(8))) for ch in channels])[sel]
-                digital_max = np.array([float(_edf_str(fid.read(8))) for ch in channels])[sel]
+                physical_min = np.array(
+                    [float(_edf_str(fid.read(8))) for ch in channels]
+                )[sel]
+                physical_max = np.array(
+                    [float(_edf_str(fid.read(8))) for ch in channels]
+                )[sel]
+                digital_min = np.array(
+                    [float(_edf_str(fid.read(8))) for ch in channels]
+                )[sel]
+                digital_max = np.array(
+                    [float(_edf_str(fid.read(8))) for ch in channels]
+                )[sel]
                 prefiltering = [_edf_str(fid.read(80)).strip() for ch in channels][:-1]
                 highpass, lowpass = _parse_prefilter_string(prefiltering)
 
@@ -761,7 +768,9 @@ def _read_edf_header(fname, exclude):
                 fid.seek(0, 2)
                 n_bytes = fid.tell()
                 n_data_bytes = n_bytes - header_nbytes
-                total_samps = n_data_bytes // 3 if subtype == "bdf" else n_data_bytes // 2
+                total_samps = (
+                    n_data_bytes // 3 if subtype == "bdf" else n_data_bytes // 2
+                )
                 read_records = total_samps // np.sum(n_samps)
                 if n_records != read_records:
                     warn(
@@ -772,8 +781,8 @@ def _read_edf_header(fname, exclude):
                     edf_info["n_records"] = read_records
                 del n_records
                 break
-            except (ValueError, AssertionError):
-                len_rec_info += 1
+        except (ValueError, AssertionError):
+            len_rec_info += 1
 
         if subtype == "bdf":
             edf_info["dtype_byte"] = 3  # 24-bit (3 byte) integers
