@@ -781,7 +781,7 @@ def _read_edf_header(fname, exclude):
                     edf_info["n_records"] = read_records
                 del n_records
                 break
-        except (ValueError, AssertionError):
+        except (ValueError, AssertionError, TypeError):
             len_rec_info += 1
 
     if subtype == "bdf":
