@@ -784,12 +784,12 @@ def _read_edf_header(fname, exclude):
         except (ValueError, AssertionError):
             len_rec_info += 1
 
-        if subtype == "bdf":
-            edf_info["dtype_byte"] = 3  # 24-bit (3 byte) integers
-            edf_info["dtype_np"] = UINT8
-        else:
-            edf_info["dtype_byte"] = 2  # 16-bit (2 byte) integers
-            edf_info["dtype_np"] = INT16
+    if subtype == "bdf":
+        edf_info["dtype_byte"] = 3  # 24-bit (3 byte) integers
+        edf_info["dtype_np"] = UINT8
+    else:
+        edf_info["dtype_byte"] = 2  # 16-bit (2 byte) integers
+        edf_info["dtype_np"] = INT16
 
     return edf_info, orig_units
 
