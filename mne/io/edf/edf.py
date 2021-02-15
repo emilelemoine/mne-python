@@ -27,8 +27,6 @@ from ...filter import resample
 from ...utils import fill_doc
 from ...annotations import Annotations
 
-warnings.simplefilter(action="ignore", category=FutureWarning)
-
 
 @fill_doc
 class RawEDF(BaseRaw):
@@ -1314,7 +1312,9 @@ def _find_exclude_idx(ch_names, exclude):
     If there are several channels called "A" and we want to exclude "A",
     then add (the index of) all "A" channels to the exclusion list.
     """
-    return [idx for idx, ch in enumerate(ch_names) if ch in exclude]
+    with warnings.catch_warnings():
+        warnings.simplefilter(action="ignore", category=FutureWarning)
+        return [idx for idx, ch in enumerate(ch_names) if ch in exclude]
 
 
 def _find_tal_idx(ch_names):
