@@ -668,10 +668,10 @@ def _read_edf_header(fname, exclude):
                         year, month, day, hour, minute, sec, tzinfo=timezone.utc
                     )
                 except ValueError:
-                    warn(
-                        f"Invalid date encountered ({year:04d}-{month:02d}-"
-                        f"{day:02d} {hour:02d}:{minute:02d}:{sec:02d})."
-                    )
+                    # warn(
+                    #     f"Invalid date encountered ({year:04d}-{month:02d}-"
+                    #     f"{day:02d} {hour:02d}:{minute:02d}:{sec:02d})."
+                    # )
                     meas_date = None
 
                 header_nbytes = int(_edf_str(fid.read(8)).replace(".", ""))
