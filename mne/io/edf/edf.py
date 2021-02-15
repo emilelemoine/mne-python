@@ -16,6 +16,7 @@ import os
 import re
 
 import numpy as np
+import warnings
 
 from ...utils import verbose, logger, warn
 from ..utils import _blk_read_lims, _mult_cal_one
@@ -25,6 +26,8 @@ from ..constants import FIFF
 from ...filter import resample
 from ...utils import fill_doc
 from ...annotations import Annotations
+
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
 @fill_doc
